@@ -97,10 +97,10 @@ async def lifespan(app: FastAPI):
     # Start scheduler
     scheduler = AsyncIOScheduler()
 
-    # Calendar polling job - every N minutes
+    # Calendar polling job - every 5 minutes on the clock (:00, :05, :10, etc.)
     scheduler.add_job(
         poll_calendar,
-        IntervalTrigger(minutes=config.POLL_INTERVAL_MINUTES),
+        CronTrigger(minute="*/5", timezone=config.TARGET_TIMEZONE),
         id="poll_calendar",
         name="Poll Google Calendar",
         replace_existing=True,
