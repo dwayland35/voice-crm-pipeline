@@ -40,8 +40,7 @@ from transcription import transcribe_audio
 from ai_processor import process_voice_note
 from slack_service import (
     send_batch_reminder,
-    send_daniel_output,
-    send_justine_output,
+    send_combined_output,
     send_recording_prompt,
 )
 from sheets_service import ensure_headers, log_to_sheet
@@ -97,10 +96,10 @@ async def lifespan(app: FastAPI):
     # Start scheduler
     scheduler = AsyncIOScheduler()
 
-    # Calendar polling job - every 5 minutes on the clock (:00, :05, :10, etc.)
+    # Calendar polling job - every N minutes
     scheduler.add_job(
         poll_calendar,
-        CronTrigger(minute="*/5", timezone=config.TARGET_TIMEZONE),
+        IntervalTrigger(minutes=config.POLL_INTERVAL_MINUTES),
         id="poll_calendar",
         name="Poll Google Calendar",
         replace_existing=True,
@@ -416,6 +415,7 @@ async def process_pipeline(meeting_id: int, voice_note_id: int):
             action_items_json=json.dumps(processed.get("action_items", [])),
             follow_ups_json=json.dumps(processed.get("follow_ups", [])),
             proposed_tags_json=json.dumps(processed.get("proposed_tags", [])),
+            keywords_json=json.dumps(processed.get("keywords", [])),
             relationship_signals_json=json.dumps(
                 processed.get("relationship_signals", [])
             ),
@@ -426,19 +426,11 @@ async def process_pipeline(meeting_id: int, voice_note_id: int):
 
         # --- Step 4: Slack distribution ---
         try:
-            daniel_success = await send_daniel_output(meeting, processed, config)
-            if daniel_success:
+            slack_success = await send_combined_output(meeting, processed, config)
+            if slack_success:
                 result.slack_daniel_sent_at = datetime.now(timezone.utc)
         except Exception as e:
-            logger.error(f"Failed to send Daniel output: {e}")
-
-        try:
-            if config.SLACK_WEBHOOK_JUSTINE_OUTPUT:
-                justine_success = await send_justine_output(meeting, processed, config)
-                if justine_success:
-                    result.slack_justine_sent_at = datetime.now(timezone.utc)
-        except Exception as e:
-            logger.error(f"Failed to send Justine output: {e}")
+            logger.error(f"Failed to send Slack output: {e}")
 
         # --- Step 5: Google Sheets log ---
         try:
