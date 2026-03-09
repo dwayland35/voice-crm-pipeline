@@ -65,7 +65,8 @@ Your output must be a valid JSON object with exactly these fields:
       "contacts_involved": "Names of people/firms connected"
     }
   ],
-  "contact_note": "A cleaned-up, professional version of the voice note content suitable for adding to a CRM contact record. Written in third person past tense."
+  "keywords": ["keyword1", "keyword2"],
+  "contact_note": "A cleaned-up, professional version of the voice note content as bullet points, suitable for adding to a CRM contact record. Written in third person past tense. Each bullet should capture one distinct fact or insight."
 }
 
 Tag taxonomy to map against:
@@ -89,6 +90,9 @@ FOR ALL CONTACTS:
 - Network Connections: Names of connected contacts/firms
 - Key Topics Discussed: Keywords
 - Introduction Path: How the relationship formed
+
+KEYWORDS:
+The "keywords" field captures specific, searchable deal-type terms mentioned in the conversation. These are concrete nouns that describe industries, asset types, sports, sectors, or investment themes. Examples: "soccer", "music", "endurance sports", "wellness", "pickleball", "live events", "running", "yoga", "festivals", "esports". Extract every specific keyword that could be useful for searching this contact later. Be specific (use "soccer" not "sports", use "music" not "entertainment") but include broader terms too when explicitly discussed.
 
 Rules:
 - Only propose tags you have evidence for in the transcript. Do not guess.
