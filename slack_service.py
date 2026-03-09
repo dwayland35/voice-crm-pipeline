@@ -85,19 +85,11 @@ async def send_recording_prompt(meeting: Meeting, config: Config) -> bool:
                 ],
             },
             {
-                "type": "actions",
-                "elements": [
-                    {
-                        "type": "button",
-                        "text": {
-                            "type": "plain_text",
-                            "text": ":red_circle: Record Voice Note",
-                            "emoji": True,
-                        },
-                        "url": record_url,
-                        "style": "primary",
-                    },
-                ],
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f":red_circle: *<{record_url}|Record Voice Note>*",
+                },
             },
         ],
     }
