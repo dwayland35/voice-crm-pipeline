@@ -150,6 +150,7 @@ class ProcessedResult(Base):
     action_items_json = Column(Text, default="[]")  # JSON array
     follow_ups_json = Column(Text, default="[]")  # JSON array
     proposed_tags_json = Column(Text, default="[]")  # JSON array
+    keywords_json = Column(Text, default="[]")  # JSON array of keyword strings
     relationship_signals_json = Column(Text, default="[]")  # JSON array
     contact_note = Column(Text, default="")  # Cleaned note for CRM
 
