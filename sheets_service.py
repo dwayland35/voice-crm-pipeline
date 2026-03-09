@@ -29,6 +29,7 @@ SHEET_HEADERS = [
     "Action Items",
     "Follow-Ups",
     "Proposed Tags",
+    "Keywords",
     "Relationship Signals",
     "Contact Note",
     "Processed At",
@@ -65,7 +66,7 @@ async def ensure_headers(config: Config) -> None:
     # Read row 1 to check for existing headers
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.get(
-            f"{SHEETS_API_BASE}/{config.GOOGLE_SHEETS_SPREADSHEET_ID}/values/Sheet1!A1:L1",
+            f"{SHEETS_API_BASE}/{config.GOOGLE_SHEETS_SPREADSHEET_ID}/values/Sheet1!A1:M1",
             headers={"Authorization": f"Bearer {token}"},
         )
 
@@ -79,7 +80,7 @@ async def ensure_headers(config: Config) -> None:
     # Write headers
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.put(
-            f"{SHEETS_API_BASE}/{config.GOOGLE_SHEETS_SPREADSHEET_ID}/values/Sheet1!A1:L1",
+            f"{SHEETS_API_BASE}/{config.GOOGLE_SHEETS_SPREADSHEET_ID}/values/Sheet1!A1:M1",
             headers={"Authorization": f"Bearer {token}"},
             params={"valueInputOption": "RAW"},
             json={"values": [SHEET_HEADERS]},
@@ -143,6 +144,10 @@ async def log_to_sheet(
         for s in signals
     )
 
+    # Format keywords
+    keywords = processed.get("keywords", [])
+    keywords_text = ", ".join(keywords)
+
     row = [
         meeting.start_time.strftime("%Y-%m-%d"),
         meeting.start_time.strftime("%-I:%M %p"),
@@ -153,6 +158,7 @@ async def log_to_sheet(
         actions_text,
         followups_text,
         tags_text,
+        keywords_text,
         signals_text,
         processed.get("contact_note", ""),
         datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC"),
@@ -161,7 +167,7 @@ async def log_to_sheet(
     # Append row to sheet
     async with httpx.AsyncClient(timeout=10.0) as client:
         response = await client.post(
-            f"{SHEETS_API_BASE}/{config.GOOGLE_SHEETS_SPREADSHEET_ID}/values/Sheet1!A:L:append",
+            f"{SHEETS_API_BASE}/{config.GOOGLE_SHEETS_SPREADSHEET_ID}/values/Sheet1!A:M:append",
             headers={"Authorization": f"Bearer {token}"},
             params={"valueInputOption": "RAW", "insertDataOption": "INSERT_ROWS"},
             json={"values": [row]},
