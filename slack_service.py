@@ -153,11 +153,13 @@ async def send_batch_reminder(
     return success
 
 
-async def send_daniel_output(
+async def send_combined_output(
     meeting: Meeting, processed: dict, config: Config
 ) -> bool:
     """
-    Send processed results to Daniel: summary, proposed tags, and relationship signals.
+    Send all processed results to a single Slack channel:
+    summary, action items, follow-ups, proposed tags, keywords,
+    relationship signals, and CRM note.
     """
     # Build attendee display
     names = [n.strip() for n in meeting.attendee_names.split(",") if n.strip()]
@@ -169,111 +171,7 @@ async def send_daniel_output(
             external.append(name)
     attendee_str = ", ".join(external)
 
-    # Summary section
-    summary = processed.get("summary", "No summary available.")
-
-    # Build tag proposals text
-    tags = processed.get("proposed_tags", [])
-    tags_text = ""
-    if tags:
-        tag_lines = []
-        for tag in tags:
-            confidence_emoji = {"high": ":large_green_circle:", "medium": ":large_yellow_circle:", "low": ":red_circle:"}.get(
-                tag.get("confidence", "low"), ":white_circle:"
-            )
-            tag_lines.append(
-                f"{confidence_emoji} *{tag.get('field', '')}:* {tag.get('value', '')} — _{tag.get('reasoning', '')}_"
-            )
-        tags_text = "\n".join(tag_lines)
-    else:
-        tags_text = "_No tags proposed from this note._"
-
-    # Relationship signals
-    signals = processed.get("relationship_signals", [])
-    signals_text = ""
-    if signals:
-        signal_lines = [
-            f":link: {s.get('signal', '')} ({s.get('contacts_involved', '')})"
-            for s in signals
-        ]
-        signals_text = "\n".join(signal_lines)
-
-    # Build blocks
-    blocks = [
-        {
-            "type": "header",
-            "text": {
-                "type": "plain_text",
-                "text": f"Voice Note Processed: {attendee_str}",
-                "emoji": True,
-            },
-        },
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*Meeting:* {meeting.title}\n*Summary:* {summary}",
-            },
-        },
-        {"type": "divider"},
-        {
-            "type": "section",
-            "text": {
-                "type": "mrkdwn",
-                "text": f"*Proposed Affinity Tags:*\n{tags_text}",
-            },
-        },
-    ]
-
-    if signals_text:
-        blocks.append({"type": "divider"})
-        blocks.append(
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*Relationship Signals:*\n{signals_text}",
-                },
-            }
-        )
-
-    # Contact note
-    contact_note = processed.get("contact_note", "")
-    if contact_note:
-        blocks.append({"type": "divider"})
-        blocks.append(
-            {
-                "type": "section",
-                "text": {
-                    "type": "mrkdwn",
-                    "text": f"*CRM Note (copy to Affinity):*\n```{contact_note}```",
-                },
-            }
-        )
-
-    payload = {"blocks": blocks}
-    success = await _send_webhook(config.SLACK_WEBHOOK_DANIEL_OUTPUT, payload)
-    if success:
-        logger.info(f"Sent processed output to Daniel for '{meeting.title}'")
-    return success
-
-
-async def send_justine_output(
-    meeting: Meeting, processed: dict, config: Config
-) -> bool:
-    """
-    Send action items and follow-ups to Justine.
-    """
-    # Build attendee display
-    names = [n.strip() for n in meeting.attendee_names.split(",") if n.strip()]
-    emails = [e.strip() for e in meeting.attendee_emails.split(",") if e.strip()]
-    external = []
-    for i, email in enumerate(emails):
-        if not email.endswith(f"@{config.INTERNAL_DOMAIN}"):
-            name = names[i] if i < len(names) else email
-            external.append(name)
-    attendee_str = ", ".join(external)
-
+    # Summary
     summary = processed.get("summary", "No summary available.")
 
     # Action items
@@ -300,12 +198,45 @@ async def send_justine_output(
         )
     followups_text = "\n".join(followup_lines) if followup_lines else "_No follow-ups needed._"
 
+    # Proposed tags
+    tags = processed.get("proposed_tags", [])
+    if tags:
+        tag_lines = []
+        for tag in tags:
+            confidence_emoji = {"high": ":large_green_circle:", "medium": ":large_yellow_circle:", "low": ":red_circle:"}.get(
+                tag.get("confidence", "low"), ":white_circle:"
+            )
+            tag_lines.append(
+                f"{confidence_emoji} *{tag.get('field', '')}:* {tag.get('value', '')} — _{tag.get('reasoning', '')}_"
+            )
+        tags_text = "\n".join(tag_lines)
+    else:
+        tags_text = "_No tags proposed from this note._"
+
+    # Keywords
+    keywords = processed.get("keywords", [])
+    keywords_text = ", ".join(keywords) if keywords else "_No keywords identified._"
+
+    # Relationship signals
+    signals = processed.get("relationship_signals", [])
+    signals_text = ""
+    if signals:
+        signal_lines = [
+            f":link: {s.get('signal', '')} ({s.get('contacts_involved', '')})"
+            for s in signals
+        ]
+        signals_text = "\n".join(signal_lines)
+
+    # Contact note
+    contact_note = processed.get("contact_note", "")
+
+    # Build blocks
     blocks = [
         {
             "type": "header",
             "text": {
                 "type": "plain_text",
-                "text": f"Meeting Follow-Up: {attendee_str}",
+                "text": f"Voice Note Processed: {attendee_str}",
                 "emoji": True,
             },
         },
@@ -332,10 +263,50 @@ async def send_justine_output(
                 "text": f"*Follow-Up Meetings to Schedule:*\n{followups_text}",
             },
         },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Proposed Affinity Tags:*\n{tags_text}",
+            },
+        },
+        {"type": "divider"},
+        {
+            "type": "section",
+            "text": {
+                "type": "mrkdwn",
+                "text": f"*Keywords:* {keywords_text}",
+            },
+        },
     ]
 
+    if signals_text:
+        blocks.append({"type": "divider"})
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*Relationship Signals:*\n{signals_text}",
+                },
+            }
+        )
+
+    if contact_note:
+        blocks.append({"type": "divider"})
+        blocks.append(
+            {
+                "type": "section",
+                "text": {
+                    "type": "mrkdwn",
+                    "text": f"*CRM Note (copy to Affinity):*\n{contact_note}",
+                },
+            }
+        )
+
     payload = {"blocks": blocks}
-    success = await _send_webhook(config.SLACK_WEBHOOK_JUSTINE_OUTPUT, payload)
+    success = await _send_webhook(config.SLACK_WEBHOOK_DANIEL_OUTPUT, payload)
     if success:
-        logger.info(f"Sent action items to Justine for '{meeting.title}'")
+        logger.info(f"Sent combined output for '{meeting.title}'")
     return success
