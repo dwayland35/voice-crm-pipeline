@@ -97,13 +97,13 @@ async def lifespan(app: FastAPI):
     scheduler = AsyncIOScheduler()
 
     # Calendar polling job - every 5 minutes on the clock (:00, :05, :10, etc.)
-        scheduler.add_job(
-            poll_calendar,
-            CronTrigger(minute="*/5", timezone=config.TARGET_TIMEZONE),
-            id="poll_calendar",
-            name="Poll Google Calendar",
-            replace_existing=True,
-        )
+    scheduler.add_job(
+        poll_calendar,
+        CronTrigger(minute="*/5", timezone=config.TARGET_TIMEZONE),
+        id="poll_calendar",
+        name="Poll Google Calendar",
+        replace_existing=True,
+    )
 
     # End-of-day batch reminder
     scheduler.add_job(
@@ -120,7 +120,7 @@ async def lifespan(app: FastAPI):
 
     scheduler.start()
     logger.info(
-        f"Scheduler started: polling every {config.POLL_INTERVAL_MINUTES} min, "
+        f"Scheduler started: polling at :00, :05, :10 etc., "
         f"EOD reminder at {config.BATCH_REMINDER_HOUR}:00 {config.TARGET_TIMEZONE}"
     )
 
